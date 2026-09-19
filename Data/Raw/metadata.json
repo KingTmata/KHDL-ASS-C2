@@ -1,1 +1,41 @@
-
+{
+  "source": "VnExpress",
+  "category": "Nhiều chuyên mục",
+  "source_urls": [
+    "https://vnexpress.net/thoi-su",
+    "https://vnexpress.net/the-gioi",
+    "https://vnexpress.net/kinh-doanh",
+    "https://vnexpress.net/phap-luat",
+    "https://vnexpress.net/khoa-hoc-cong-nghe",
+    "https://vnexpress.net/suc-khoe",
+    "https://vnexpress.net/doi-song",
+    "https://vnexpress.net/giao-duc",
+    "https://vnexpress.net/du-lich",
+    "https://vnexpress.net/oto-xe-may"
+  ],
+  "robots_url": "https://vnexpress.net/robots.txt",
+  "collected_at": "2026-09-20 06:16:19",
+  "record_count": 500,
+  "category_pages_scanned": 26,
+  "candidate_url_count": 1010,
+  "failed_url_count": 121,
+  "request_delay_seconds": 1,
+  "output_file": "Data/Raw/vnexpress_news.csv",
+  "encoding": "utf-8-sig",
+  "columns": [
+    "title",
+    "description",
+    "published_at",
+    "author",
+    "url",
+    "content"
+  ],
+  "missing_values": {
+    "title": 0,
+    "description": 0,
+    "published_at": 0,
+    "author": 0,
+    "url": 0,
+    "content": 0
+  }
+}
