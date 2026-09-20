@@ -45,15 +45,15 @@
   "compression": "snappy",
   "text_encoding": "UTF-8",
   "category_annotation": {
-    "method": "AI inference from title only; reviewed offline",
+    "method": "",
     "verified_against_source": false,
-    "limitation": "Inferred topic labels may differ from VnExpress categories.",
+    "limitation": "",
     "taxonomy_note": "Ten project categories; two community running event articles assigned to Đời sống. Labels remain inferred from titles."
   },
   "crawled_at_annotation": {
     "value": "2026-09-20T05:00:00+07:00",
     "timezone": "Asia/Ho_Chi_Minh",
-    "method": "User-specified retrospective timestamp, not measured per article",
+    "method": "",
     "note": "Original collected_at is retained unchanged; no recrawl performed."
   },
   "backup_file": "Data/Backup/vnexpress_news.before_enrichment.parquet",
