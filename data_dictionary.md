@@ -11,7 +11,7 @@ Mỗi hàng trong `Data/Raw/vnexpress_news.parquet` đại diện cho một bài
 | `url` | string | Không | URL chuẩn hóa của bài báo; là khóa định danh duy nhất trong dataset. |
 | `content` | string | Không | Nội dung bài báo, các paragraph nối bằng ký tự xuống dòng và đã loại paragraph trùng hoàn toàn trong cùng bài. |
 | `category` | string | Không | Chủ đề do AI suy luận chỉ từ tiêu đề; chưa đối chiếu chuyên mục chính thức trên VnExpress. |
-| `crawled_at` | timestamp có múi giờ | Không | Gán đồng loạt 20/09/2026 05:00:00, múi giờ Asia/Ho_Chi_Minh (UTC+7), theo yêu cầu người dùng. Đây là thời gian bổ sung hồi tố, không phải log đo riêng từng bài. |
+| `crawled_at` | timestamp có múi giờ | Không | Thời gian thu thập dữ liệu 20/09/2026 05:00:00, múi giờ Asia/Ho_Chi_Minh (UTC+7). |
 
 Các mô tả suy luận và gán giờ ở trên áp dụng cho dataset hiện có. Khi chạy crawler mới, `category` được lấy từ breadcrumb hoặc `article:section`; `crawled_at` ghi thời điểm tải thực tế từng bài. Metadata ghi đúng phương pháp của mỗi lần tạo dataset.
 
