@@ -1,29 +1,22 @@
 import json
 import os
 import time
+from pathlib import Path
+from urllib.parse import urlparse
 
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+from schema import CATEGORY_BY_SLUG, CATEGORIES, COLUMNS, TIMEZONE
 
 
 # Các chuyên mục dùng để lấy bài đa dạng hơn.
-CATEGORY_URLS = [
-    "https://vnexpress.net/thoi-su",
-    "https://vnexpress.net/the-gioi",
-    "https://vnexpress.net/kinh-doanh",
-    "https://vnexpress.net/phap-luat",
-    "https://vnexpress.net/khoa-hoc-cong-nghe",
-    "https://vnexpress.net/suc-khoe",
-    "https://vnexpress.net/doi-song",
-    "https://vnexpress.net/giao-duc",
-    "https://vnexpress.net/du-lich",
-    "https://vnexpress.net/oto-xe-may",
-]
+CATEGORY_URLS = [f"https://vnexpress.net/{slug}" for slug in CATEGORY_BY_SLUG]
 
-OUTPUT_FILE = "Data/Raw/vnexpress_news.csv"
-FAILED_FILE = "Data/Raw/failed_urls.csv"
-METADATA_FILE = "Data/Raw/metadata.json"
+ROOT = Path(__file__).resolve().parent.parent
+OUTPUT_FILE = ROOT / "Data/Raw/vnexpress_news.parquet"
+FAILED_FILE = ROOT / "Data/Raw/failed_urls.csv"
+METADATA_FILE = ROOT / "Data/Raw/metadata.json"
 
 TARGET_ARTICLES = 500
 TARGET_URLS = 1000
@@ -64,10 +57,33 @@ def get_soup(url):
         return None
 
 
+def extract_category(soup):
+    """Lấy chuyên mục từ breadcrumb hoặc article:section; không suy đoán từ link liên quan."""
+    for link in soup.select(".breadcrumb a[href], .breadcrumbs a[href]"):
+        slug = urlparse(link["href"]).path.strip("/").split("/")[0]
+        if slug in CATEGORY_BY_SLUG:
+            return CATEGORY_BY_SLUG[slug]
+    section = soup.find("meta", property="article:section")
+    if section is None:
+        section = soup.find("meta", attrs={"name": "article:section"})
+    if section:
+        name = " ".join(section.get("content", "").split()).casefold()
+        aliases = {value.casefold(): value for value in CATEGORIES}
+        aliases.update({"khoa học công nghệ": "Khoa học - Công nghệ",
+                        "ô tô - xe máy": "Ôtô - Xe máy", "xe": "Ôtô - Xe máy"})
+        return aliases.get(name)
+    return None
+
+
 def scrape_article(url):
     """Lấy một bài báo; trả về None nếu bài không đạt tiêu chí."""
     soup = get_soup(url)
     if soup is None:
+        return None
+    crawled_at = pd.Timestamp.now(tz=TIMEZONE)
+    category = extract_category(soup)
+    if category is None:
+        print("Không xác định được chuyên mục thuộc 10 nhóm:", url)
         return None
 
     title = soup.find("h1", class_="title-detail")
@@ -108,6 +124,8 @@ def scrape_article(url):
         "author": author,
         "url": url,
         "content": content,
+        "category": category,
+        "crawled_at": crawled_at,
     }
 
 
@@ -158,7 +176,7 @@ def load_existing_urls():
     if not os.path.exists(OUTPUT_FILE):
         return []
 
-    dataframe = pd.read_csv(OUTPUT_FILE)
+    dataframe = pd.read_parquet(OUTPUT_FILE, engine="pyarrow")
     if "url" not in dataframe.columns:
         return []
 
@@ -172,9 +190,21 @@ def load_existing_urls():
 
 
 def save_results(articles, failed_urls, pages_scanned, candidate_count):
-    """Lưu CSV, danh sách lỗi và metadata."""
-    dataframe = pd.DataFrame(articles)
-    dataframe.to_csv(OUTPUT_FILE, index=False, encoding="utf-8-sig")
+    """Lưu Parquet, danh sách lỗi CSV và metadata."""
+    dataframe = pd.DataFrame(articles, columns=COLUMNS)
+    if dataframe.empty:
+        raise ValueError("Không có bài hợp lệ; giữ nguyên dataset hiện tại.")
+    if not dataframe["category"].isin(CATEGORIES).all():
+        raise ValueError("Chuyên mục phải thuộc 10 nhóm trong schema.py")
+    if any(pd.Timestamp(value).tzinfo is None for value in dataframe["crawled_at"]):
+        raise ValueError("crawled_at phải có múi giờ")
+    dataframe["crawled_at"] = pd.to_datetime(
+        dataframe["crawled_at"], utc=True, errors="raise"
+    ).dt.tz_convert(TIMEZONE)
+    if dataframe.isna().any().any():
+        raise ValueError("Dataset thiếu dữ liệu; giữ nguyên file hiện tại.")
+    os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
+    dataframe.to_parquet(OUTPUT_FILE, index=False, engine="pyarrow", compression="snappy")
 
     pd.DataFrame(failed_urls, columns=["url", "reason"]).to_csv(
         FAILED_FILE,
@@ -187,14 +217,29 @@ def save_results(articles, failed_urls, pages_scanned, candidate_count):
         "category": "Nhiều chuyên mục",
         "source_urls": CATEGORY_URLS,
         "robots_url": "https://vnexpress.net/robots.txt",
-        "collected_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "collected_at": pd.Timestamp.now(tz=TIMEZONE).isoformat(),
         "record_count": len(articles),
         "category_pages_scanned": pages_scanned,
         "candidate_url_count": candidate_count,
         "failed_url_count": len(failed_urls),
         "request_delay_seconds": REQUEST_DELAY,
-        "output_file": OUTPUT_FILE,
-        "encoding": "utf-8-sig",
+        "output_file": "Data/Raw/vnexpress_news.parquet",
+        "categories": CATEGORIES,
+        "category_counts": {
+            category: int(dataframe["category"].eq(category).sum())
+            for category in CATEGORIES
+        },
+        "category_annotation": {
+            "method": "Extracted from article breadcrumb or article:section metadata",
+            "verified_against_source": True,
+        },
+        "crawled_at_annotation": {
+            "method": "Actual time after each article was downloaded and parsed",
+            "timezone": TIMEZONE,
+        },
+        "format": "parquet",
+        "compression": "snappy",
+        "text_encoding": "UTF-8",
         "columns": list(dataframe.columns),
         "missing_values": dataframe.isna().sum().to_dict(),
     }
@@ -249,13 +294,14 @@ def main():
 
         time.sleep(REQUEST_DELAY)
 
+    if len(articles) < TARGET_ARTICLES:
+        raise RuntimeError(
+            f"Chỉ lấy được {len(articles)}/{TARGET_ARTICLES} bài; "
+            "không ghi đè dataset hiện tại. Hãy tăng số trang chuyên mục."
+        )
     save_results(articles, failed_urls, pages_scanned, len(new_urls))
     print("Hoàn thành:", len(articles), "bài hợp lệ")
     print("URL lỗi hoặc bị loại:", len(failed_urls))
-
-    if len(articles) < TARGET_ARTICLES:
-        print("Chưa đủ 500 bài. Hãy tăng số trang chuyên mục.")
-
 
 if __name__ == "__main__":
     main()

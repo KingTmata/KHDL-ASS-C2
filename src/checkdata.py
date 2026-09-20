@@ -1,18 +1,13 @@
 from pathlib import Path
 
 import pandas as pd
+import json
+from schema import CATEGORIES, COLUMNS, TIMEZONE
 
 
-DATA_FILE = Path(__file__).resolve().parent.parent / "Data/Raw/vnexpress_news.csv"
+DATA_FILE = Path(__file__).resolve().parent.parent / "Data/Raw/vnexpress_news.parquet"
 TARGET_RECORDS = 500
-REQUIRED_COLUMNS = [
-    "title",
-    "description",
-    "published_at",
-    "author",
-    "url",
-    "content",
-]
+REQUIRED_COLUMNS = COLUMNS
 
 
 def is_valid_author(text):
@@ -59,7 +54,7 @@ def author_still_in_content(row):
 
 
 def main():
-    dataframe = pd.read_csv(DATA_FILE)
+    dataframe = pd.read_parquet(DATA_FILE, engine="pyarrow")
 
     missing_columns = [
         column for column in REQUIRED_COLUMNS if column not in dataframe.columns
@@ -68,8 +63,21 @@ def main():
         raise ValueError("Thiếu cột: " + ", ".join(missing_columns))
 
     duplicate_paragraphs = duplicate_paragraph_titles(dataframe)
+    if not isinstance(dataframe["crawled_at"].dtype, pd.DatetimeTZDtype):
+        raise ValueError("crawled_at phải là datetime có múi giờ")
+    if str(dataframe["crawled_at"].dt.tz) != TIMEZONE:
+        raise ValueError("crawled_at phải dùng múi giờ " + TIMEZONE)
+    metadata = json.loads(DATA_FILE.with_name("metadata.json").read_text(encoding="utf-8"))
+    actual_counts = {category: int(dataframe["category"].eq(category).sum()) for category in CATEGORIES}
+    if metadata.get("categories") != CATEGORIES or metadata.get("category_counts") != actual_counts:
+        raise ValueError("Danh sách hoặc số bài mỗi category trong metadata không khớp Parquet")
+    if metadata.get("columns") != list(dataframe.columns) or metadata.get("record_count") != len(dataframe):
+        raise ValueError("Schema hoặc số bản ghi trong metadata không khớp Parquet")
     checks = {
         "Số bản ghi": len(dataframe),
+        "Thiếu category": dataframe["category"].fillna("").str.strip().eq("").sum(),
+        "Category ngoài 10 nhóm": (~dataframe["category"].isin(CATEGORIES)).sum(),
+        "Thiếu crawled_at": dataframe["crawled_at"].isna().sum(),
         "Thiếu title": dataframe["title"].isna().sum(),
         "Thiếu description": dataframe["description"].isna().sum(),
         "Thiếu published_at": dataframe["published_at"].isna().sum(),

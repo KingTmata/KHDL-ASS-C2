@@ -20,15 +20,16 @@
   "candidate_url_count": 1010,
   "failed_url_count": 121,
   "request_delay_seconds": 1,
-  "output_file": "Data/Raw/vnexpress_news.csv",
-  "encoding": "utf-8-sig",
+  "output_file": "Data/Raw/vnexpress_news.parquet",
   "columns": [
     "title",
     "description",
     "published_at",
     "author",
     "url",
-    "content"
+    "content",
+    "category",
+    "crawled_at"
   ],
   "missing_values": {
     "title": 0,
@@ -36,6 +37,48 @@
     "published_at": 0,
     "author": 0,
     "url": 0,
-    "content": 0
+    "content": 0,
+    "category": 0,
+    "crawled_at": 0
+  },
+  "format": "parquet",
+  "compression": "snappy",
+  "text_encoding": "UTF-8",
+  "category_annotation": {
+    "method": "AI inference from title only; reviewed offline",
+    "verified_against_source": false,
+    "limitation": "Inferred topic labels may differ from VnExpress categories.",
+    "taxonomy_note": "Ten project categories; two community running event articles assigned to Đời sống. Labels remain inferred from titles."
+  },
+  "crawled_at_annotation": {
+    "value": "2026-09-20T05:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh",
+    "method": "User-specified retrospective timestamp, not measured per article",
+    "note": "Original collected_at is retained unchanged; no recrawl performed."
+  },
+  "backup_file": "Data/Backup/vnexpress_news.before_enrichment.parquet",
+  "categories": [
+    "Thời sự",
+    "Thế giới",
+    "Kinh doanh",
+    "Pháp luật",
+    "Khoa học - Công nghệ",
+    "Sức khỏe",
+    "Đời sống",
+    "Giáo dục",
+    "Du lịch",
+    "Ôtô - Xe máy"
+  ],
+  "category_counts": {
+    "Thời sự": 74,
+    "Thế giới": 59,
+    "Kinh doanh": 81,
+    "Pháp luật": 45,
+    "Khoa học - Công nghệ": 22,
+    "Sức khỏe": 34,
+    "Đời sống": 32,
+    "Giáo dục": 42,
+    "Du lịch": 52,
+    "Ôtô - Xe máy": 59
   }
 }
